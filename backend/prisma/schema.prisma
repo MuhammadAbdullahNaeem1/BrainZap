@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int      @id @default(autoincrement())
+  name     String
+  email    String   @unique
+  password String
+  role     Role
+  createdAt DateTime @default(now())
+  quizzes  Quiz[]   @relation("UserQuizzes")
+}
+
+enum Role {
+  Teacher
+  Student
+  Admin
+}
+
+model Quiz {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String?
+  type        QuizType
+  creator     User       @relation("UserQuizzes", fields: [creatorId], references: [id])
+  creatorId   Int
+  questions   Question[]
+  createdAt   DateTime   @default(now())
+}
+
+
+model Question {
+  id        Int       @id @default(autoincrement())
+  text      String
+  timer     Int       // in seconds
+  quiz      Quiz      @relation(fields: [quizId], references: [id])
+  quizId    Int
+  options   Option[]
+  type      QuestionType
+}
+
+model Option {
+  id          Int      @id @default(autoincrement())
+  text        String
+  isCorrect   Boolean
+  question    Question @relation(fields: [questionId], references: [id])
+  questionId  Int
+}
+
+enum QuizType {
+  Live
+  Assign
+  Practice
+}
+
+enum QuestionType {
+  MCQ
+  TrueFalse
+  TypeAnswer
+  Multiselect
+}
