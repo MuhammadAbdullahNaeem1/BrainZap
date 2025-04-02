@@ -16,6 +16,8 @@ export default function CreateQuiz() {
       options: [
         { text: '', isCorrect: false },
         { text: '', isCorrect: false },
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false },
       ],
     },
   ]);
@@ -23,7 +25,7 @@ export default function CreateQuiz() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [title, setTitle] = useState('Untitled Quiz');
   const [themeImage, setThemeImage] = useState('themes/dark-bg.jpg');
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [showThemeSidebar, setShowThemeSidebar] = useState(false);
   const defaultThemeImages = ['themes/dark-bg.jpg', 'themes/purple-bg.jpg', 'themes/green-bg.jpg', 'themes/blue-bg.jpg'];
   const selectedQuestion = questions[selectedIndex];
@@ -43,7 +45,19 @@ export default function CreateQuiz() {
     updated[selectedIndex].options[idx][key] = value;
     setQuestions(updated);
   };
-
+  const handleOptionImageUpload = (e: React.ChangeEvent<HTMLInputElement>, idx?: number) => {
+    const file = e.target.files?.[0];
+    if (!file || idx === undefined) return;
+  
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      handleOptionChange(idx, 'image', reader.result as string);
+      handleOptionChange(idx, 'text', ''); // Clear text if image is added
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  
   const addOption = () => {
     const updated = [...questions];
     updated[selectedIndex].options.push({ text: '', isCorrect: false });
@@ -67,18 +81,6 @@ export default function CreateQuiz() {
     setSelectedIndex(questions.length);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const updated = [...questions];
-      updated[selectedIndex].image = reader.result as string;
-      setQuestions(updated);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleSubmit = async () => {
     const quizData = {
@@ -119,9 +121,10 @@ export default function CreateQuiz() {
           selectedQuestion={selectedQuestion}
           handleQuestionChange={handleQuestionChange}
           handleOptionChange={handleOptionChange}
-          handleImageUpload={handleImageUpload}
+          handleImageUpload={handleOptionImageUpload}
           addOption={addOption}
         />
+
         {showThemeSidebar && (
           <ThemeSidebar
             defaultThemeImages={defaultThemeImages}
