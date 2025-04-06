@@ -54,6 +54,23 @@ const SidebarRight = ({ showSidebar, selectedQuestion, handleQuestionChange }: P
           <option value={2000}>2000</option>
         </select>
       </label>
+      <label className="block mb-4">
+        <span className="text-sm font-semibold text-gray-700">Answer options</span>
+        <select
+          value={selectedQuestion.type === 'Multiselect' ? 'Multi select' : 'Single select'}
+          onChange={(e) =>
+            handleQuestionChange(
+              'type',
+              e.target.value === 'Multi select' ? 'Multiselect' : 'MCQ'
+            )
+          }
+          className="mt-1 block w-full p-2 border rounded bg-white text-gray-800"
+        >
+          <option value="Single select">Single select</option>
+          <option value="Multi select">Multi select</option>
+        </select>
+      </label>
+
     </aside>
   );
 };

@@ -7,9 +7,11 @@ type Props = {
   selectedQuestion: Question;
   handleQuestionChange: (key: keyof Question, value: any) => void;
   handleOptionChange: <K extends keyof Option>(idx: number, key: K, value: Option[K]) => void;
-  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>, idx?: number) => void;
+  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;  // 👈 for question image
+  handleOptionImageUpload: (e: React.ChangeEvent<HTMLInputElement>, idx: number) => void; // 👈 for option image
   addOption: () => void;
 };
+
 
 const QuestionEditor = ({
   selectedQuestion,
@@ -21,16 +23,16 @@ const QuestionEditor = ({
   return (
     <div className="p-6 md:p-10">
 
-      {/*Question Text */}
+      {/* 📝 Question Text */}
       <input
         type="text"
         placeholder="Start typing your question"
         value={selectedQuestion.text}
         onChange={(e) => handleQuestionChange('text', e.target.value)}
-        className="w-full mb-6 px-4 py-3 border text-lg border-gray-300 rounded-lg focus:outline-indigo-400 bg-white shadow"
+        className="w-full mb-6 px-4 py-3 border text-black border-gray-300 rounded-lg focus:outline-indigo-400 bg-white shadow"
       />
 
-      {/* Image Upload for Question */}
+      {/* 🖼️ Image Upload for Question */}
       {selectedQuestion.image ? (
         <div className="relative mb-6 w-full flex items-center justify-center bg-white rounded-lg p-4 shadow">
           <img
@@ -71,7 +73,7 @@ const QuestionEditor = ({
         </div>
       )}
 
-      {/* Answer Options */}
+      {/* 🧩 Answer Options */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {selectedQuestion.options.map((opt, idx) => {
           const filled = opt.text.trim() !== '' || Boolean(opt.image);
@@ -116,9 +118,11 @@ const QuestionEditor = ({
                       handleOptionChange(idx, 'text', e.target.value);
                       if (opt.image) handleOptionChange(idx, 'image', undefined);
                     }}
-                    className="w-full bg-white outline-none placeholder-gray-450 text-center"
-
+                    className="w-full bg-transparent text-white placeholder-gray-400 outline-none text-center font-bold"
                   />
+
+
+
                 )}
               </div>
 
@@ -157,7 +161,7 @@ const QuestionEditor = ({
         })}
       </div>
 
-      {/* Add Option */}
+      {/* ➕ Add Option */}
       {selectedQuestion.options.length < 6 && (
         <div className="text-center">
           <button

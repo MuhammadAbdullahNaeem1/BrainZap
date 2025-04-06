@@ -1,30 +1,57 @@
+// src/components/SidebarLeft.tsx
+
+import { Question } from '../types/quizTypes';
 
 type Props = {
-  questions: any[];
+  questions: Question[];
   selectedIndex: number;
-  setSelectedIndex: (i: number) => void;
+  setSelectedIndex: (index: number) => void;
   addQuestion: () => void;
 };
 
-const SidebarLeft = ({ questions, selectedIndex, setSelectedIndex, addQuestion }: Props) => (
-  <aside className="pt-24 w-48 sm:w-52 md:w-56 lg:w-60 xl:w-64 bg-white/10 p-4 border-r border-white/20 overflow-y-auto hidden md:block">
+const SidebarLeft = ({
+  questions,
+  selectedIndex,
+  setSelectedIndex,
+  addQuestion,
+}: Props) => {
+  return (
+    <aside
+      className={`
+        bg-gray-400 border-white/20 p-4 z-30
+        fixed md:static
+        w-full md:w-[15%]
+        bottom-0 md:bottom-auto
+        left-0
+        h-28 md:min-h-screen
+        flex md:flex-col
+        flex-row md:border-r border-t md:border-t-0
+        overflow-x-auto md:overflow-y-auto
+        md:pt-24
+      `}
+    >
+      {questions.map((_, i) => (
+        <button
+          key={i}
+          onClick={() => setSelectedIndex(i)}
+          className={`flex-shrink-0 min-w-[100px] md:w-full mx-2 md:mx-0 mb-0 md:mb-2 py-2 px-4 text-center rounded-lg ${
+            selectedIndex === i
+              ? 'bg-white text-indigo-700 font-bold shadow-md'
+              : 'hover:bg-white/10 text-white'
+          } transition duration-200`}
+        >
+          Question {i + 1}
+        </button>
+      ))}
 
-    {questions.map((_, i) => (
       <button
-        key={i}
-        onClick={() => setSelectedIndex(i)}
-        className={`w-full mb-2 py-2 px-4 text-left rounded-lg text-sm sm:text-base md:text-lg ${
-          selectedIndex === i
-            ? 'bg-white text-indigo-700 font-bold shadow-md'
-            : 'hover:bg-white/10'
-        } transition duration-200`}
+        onClick={addQuestion}
+        className="flex-shrink-0 min-w-[100px] md:w-full mx-2 md:mx-0 mt-0 md:mt-6 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg shadow-md transition duration-200"
       >
-        <span className="truncate">Question {i + 1}</span>
+        ➕ Add Question
       </button>
-    ))}
-
-    <button onClick={addQuestion} className="mt-6 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg shadow-md transition duration-200">➕ Add Question</button>
-  </aside>
-);
+    </aside>
+  );
+};
 
 export default SidebarLeft;
