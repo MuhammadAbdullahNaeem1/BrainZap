@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { io, Socket } from 'socket.io-client';
 
 type Quiz = {
   quizId: number;
@@ -17,9 +16,6 @@ type Folder = {
   name: string;
 };
 
-// Single shared socket connection for live namespace
-const socket: Socket = io('http://localhost:5000/live');
-
 const TeacherDashboard = () => {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [folders, setFolders] = useState<Folder[]>([{ folderId: 0, name: 'All Quizzes' }]);
@@ -29,7 +25,7 @@ const TeacherDashboard = () => {
 
   // Load folders and quizzes from server
   useEffect(() => {
-    const authHeader = { Authorization: `Bearer ${sessionStorage.getItem('token') || ''}` };
+    const authHeader = { Authorization: `Bearer ${localStorage.getItem('token') || ''}` };
 
     const load = async () => {
       try {
@@ -63,7 +59,7 @@ const TeacherDashboard = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionStorage.getItem('token') || ''}`,
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
         },
         body: JSON.stringify({ name }),
       });
@@ -87,7 +83,7 @@ const TeacherDashboard = () => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${sessionStorage.getItem('token') || ''}`,
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
         },
         body: JSON.stringify({ folderId }),
       });
@@ -102,18 +98,10 @@ const TeacherDashboard = () => {
   // Filter quizzes by activeFolder
   const displayed = quizzes.filter((q) => activeFolder === 0 || q.folderId === activeFolder);
 
-  // Start live and display PIN
-  const handleGoLive = (quizId: number) => {
-    socket.emit('start_live', quizId);
-    socket.once('quiz_pin', (pin: string) => {
-      navigate(`/teacher/live/${quizId}`, { state: { pin } });
-    });
-  };
-
   return (
-    <div className="flex h-screen w-screen bg-gradient-to-br from-indigo-800 to-purple-800">
+    <div className="flex min-h-screen bg-gradient-to-br from-indigo-800 to-purple-800">
       {/* Sidebar */}
-      <aside className="w-64 bg-white/10 text-white p-6 hidden md:block">
+      <aside className="w-64 bg-white/10 text-white p-6">
         <h2 className="text-xl font-semibold mb-4">Folders</h2>
         <ul className="space-y-2">
           {folders.map((f) => (
@@ -169,10 +157,12 @@ const TeacherDashboard = () => {
 
               <button
                 onClick={() => navigate(`/edit-quiz/${quiz.quizId}`)}
-                className="w-full text-left bg-indigo-400"
+                className="w-full text-left bg-indigo-500"
               >
                 <h2 className="text-xl font-semibold mb-2">{quiz.title}</h2>
-                <p className="text-sm text-gray-200">📝 {quiz.questionsCount} questions</p>
+                <p className="text-sm text-gray-200">
+                  📝 {quiz.questionsCount} questions
+                </p>
                 <p className="text-sm text-gray-200">
                   📅 {new Date(quiz.createdAt).toLocaleDateString()}
                 </p>
@@ -184,7 +174,7 @@ const TeacherDashboard = () => {
                   await fetch(`http://localhost:5000/api/quiz/${quiz.quizId}`, {
                     method: 'DELETE',
                     headers: {
-                      Authorization: `Bearer ${sessionStorage.getItem('token') || ''}`,
+                      Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
                     },
                   });
                   setQuizzes((prev) => prev.filter((q) => q.quizId !== quiz.quizId));
@@ -193,23 +183,18 @@ const TeacherDashboard = () => {
               >
                 ✖
               </button>
-
-              <button
-                onClick={() => handleGoLive(quiz.quizId)}
-                className="mt-4 w-full bg-yellow-400 hover:bg-yellow-500 text-black py-2 rounded font-semibold shadow"
-              >
-                Go Live
-              </button>
             </div>
           ))}
 
           {/* Create New Quiz Card */}
-          <div
-            onClick={() => navigate('/create-quiz', { state: { folderId: activeFolder } })}
-            className="flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white p-6 rounded-xl shadow-lg cursor-pointer transition min-h-[150px]"
-          >
-            <span className="text-2xl font-bold">➕ Create New Quiz</span>
-          </div>
+          {activeFolder !== undefined && (
+            <div
+              onClick={() => navigate('/create-quiz', { state: { folderId: activeFolder } })}
+              className="flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white p-6 rounded-xl shadow-lg cursor-pointer transition min-h-[150px]"
+            >
+              <span className="text-2xl font-bold">➕ Create New Quiz</span>
+            </div>
+          )}
         </div>
       </main>
     </div>
