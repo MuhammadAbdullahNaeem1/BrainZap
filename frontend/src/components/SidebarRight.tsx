@@ -1,4 +1,3 @@
-import React from 'react';
 import { Question } from '../types/quizTypes';
 
 type Props = {
@@ -9,6 +8,8 @@ type Props = {
 
 const SidebarRight = ({ showSidebar, selectedQuestion, handleQuestionChange }: Props) => {
   if (!showSidebar) return null;
+
+  const isSelectable = selectedQuestion.type === 'MCQ' || selectedQuestion.type === 'Multiselect';
 
   return (
     <aside className="pt-24 fixed top-0 right-0 h-full w-80 bg-white border-l shadow-lg p-6 overflow-y-auto z-40 transition-transform">
@@ -22,9 +23,9 @@ const SidebarRight = ({ showSidebar, selectedQuestion, handleQuestionChange }: P
           className="mt-1 block w-full p-2 border rounded bg-white text-gray-800"
         >
           <option value="MCQ">Quiz</option>
+          <option value="Multiselect">Poll</option>
           <option value="TrueFalse">True / False</option>
           <option value="TypeAnswer">Type Answer</option>
-          <option value="Multiselect">Poll</option>
         </select>
       </label>
 
@@ -54,23 +55,25 @@ const SidebarRight = ({ showSidebar, selectedQuestion, handleQuestionChange }: P
           <option value={2000}>2000</option>
         </select>
       </label>
-      <label className="block mb-4">
-        <span className="text-sm font-semibold text-gray-700">Answer options</span>
-        <select
-          value={selectedQuestion.type === 'Multiselect' ? 'Multi select' : 'Single select'}
-          onChange={(e) =>
-            handleQuestionChange(
-              'type',
-              e.target.value === 'Multi select' ? 'Multiselect' : 'MCQ'
-            )
-          }
-          className="mt-1 block w-full p-2 border rounded bg-white text-gray-800"
-        >
-          <option value="Single select">Single select</option>
-          <option value="Multi select">Multi select</option>
-        </select>
-      </label>
 
+      {isSelectable && (
+        <label className="block mb-4">
+          <span className="text-sm font-semibold text-gray-700">Answer mode</span>
+          <select
+            value={selectedQuestion.type === 'Multiselect' ? 'Multi select' : 'Single select'}
+            onChange={(e) =>
+              handleQuestionChange(
+                'type',
+                e.target.value === 'Multi select' ? 'Multiselect' : 'MCQ'
+              )
+            }
+            className="mt-1 block w-full p-2 border rounded bg-white text-gray-800"
+          >
+            <option value="Single select">Single select</option>
+            <option value="Multi select">Multi select</option>
+          </select>
+        </label>
+      )}
     </aside>
   );
 };

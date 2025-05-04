@@ -1,9 +1,13 @@
+export type QuestionType = 'MCQ' | 'TrueFalse' | 'Multiselect' | 'TypeAnswer';
 
 export type Question = {
   text: string;
-  type: 'MCQ' | 'TrueFalse' | 'Multiselect' | 'TypeAnswer';
+  type: QuestionType;
   timer: number;
   image?: string;
+  audio?: string;
+  video?: string;
+  mediaOrder?: Array<'image' | 'audio' | 'video'>;
   options: Option[];
   points?: number;
 };
@@ -17,9 +21,12 @@ export const symbolColors = [
   'bg-pink-500 text-white',
   'bg-indigo-500 text-white',
 ];
+
 export type Option = {
   text: string;
   isCorrect: boolean;
   image?: string;
+  audio?: string;
+  video?: string;
+  mediaOrder?: Array<'image' | 'audio' | 'video'>;
 };
-

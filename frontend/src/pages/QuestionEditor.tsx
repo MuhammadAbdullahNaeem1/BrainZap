@@ -1,6 +1,8 @@
 // src/QuestionEditor.tsx
+
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
+import imageCompression from 'browser-image-compression';
 import QuestionMedia from '../components/QuestionMedia';
 import AnswerOptions from '../components/AnswerOptions';
 import { MediaItem } from '../types/media';
@@ -10,8 +12,6 @@ interface Props {
   selectedQuestion: Question;
   handleQuestionChange: (field: keyof Question, value: any) => void;
   handleOptionChange: <K extends keyof Option>(idx: number, key: K, value: Option[K]) => void;
-  handleOptionImageUpload: (e: React.ChangeEvent<HTMLInputElement>, idx: number) => void;
-  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   addOption: () => void;
 }
 
@@ -19,27 +19,57 @@ const QuestionEditor: React.FC<Props> = ({
   selectedQuestion,
   handleQuestionChange,
   handleOptionChange,
-  handleOptionImageUpload,
-  handleImageUpload,
   addOption,
 }) => {
   const [qMedia, setQMedia] = useState<MediaItem[]>([]);
-
-  // keep qMedia in sync with selectedQuestion.image/audio/video
+  const [optMedia, setOptMedia] = useState<MediaItem[][]>([]);
+  // keep qMedia in sync, honoring question.mediaOrder if present
   useEffect(() => {
-    const items: MediaItem[] = [];
-    if (selectedQuestion.image) items.push({ type: 'image', value: selectedQuestion.image });
-    if (selectedQuestion.audio) items.push({ type: 'audio', value: selectedQuestion.audio });
-    if (selectedQuestion.video) items.push({ type: 'video', value: selectedQuestion.video });
-    setQMedia(items);
-  }, [selectedQuestion.image, selectedQuestion.audio, selectedQuestion.video]);
+    // — question-level media —
+    const qItems: MediaItem[] = [];
+    if (selectedQuestion.image) qItems.push({ type: 'image', value: selectedQuestion.image });
+    if (selectedQuestion.audio) qItems.push({ type: 'audio', value: selectedQuestion.audio });
+    if (selectedQuestion.video) qItems.push({ type: 'video', value: selectedQuestion.video });
+  
+    const qOrdered = selectedQuestion.mediaOrder && selectedQuestion.mediaOrder.length > 0
+      ? selectedQuestion.mediaOrder
+          .map(t => qItems.find(i => i.type === t))
+          .filter((i): i is MediaItem => !!i)
+      : qItems;
+  
+    setQMedia(qOrdered);
+  
+    // — option-level media —
+    const allOptMedia = selectedQuestion.options.map(opt => {
+      const items: MediaItem[] = [];
+      if (opt.image) items.push({ type: 'image', value: opt.image });
+      if (opt.audio) items.push({ type: 'audio', value: opt.audio });
+      if (opt.video) items.push({ type: 'video', value: opt.video });
+  
+      const ordered = opt.mediaOrder && opt.mediaOrder.length > 0
+        ? opt.mediaOrder
+            .map(t => items.find(i => i.type === t))
+            .filter((i): i is MediaItem => !!i)
+        : items;
+  
+      return ordered;
+    });
+  
+    setOptMedia(allOptMedia);
+  }, [
+    selectedQuestion.image,
+    selectedQuestion.audio,
+    selectedQuestion.video,
+    selectedQuestion.mediaOrder,
+    selectedQuestion.options
+  ]);
+  
 
-  // drag handler for both question‐level and option‐level media
   const handleDragEnd = (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
 
-    // — Question media reordering —
+    // question-level media
     if (
       source.droppableId === 'question-media' &&
       destination.droppableId === 'question-media'
@@ -49,7 +79,8 @@ const QuestionEditor: React.FC<Props> = ({
       updated.splice(destination.index, 0, moved);
       setQMedia(updated);
 
-      // persist back into question
+      // persist new order + values
+      handleQuestionChange('mediaOrder', updated.map(i => i.type));
       handleQuestionChange('image', undefined);
       handleQuestionChange('audio', undefined);
       handleQuestionChange('video', undefined);
@@ -57,7 +88,7 @@ const QuestionEditor: React.FC<Props> = ({
       return;
     }
 
-    // — Option media reordering —
+    // option-level media
     if (
       source.droppableId.startsWith('option-media-') &&
       source.droppableId === destination.droppableId
@@ -72,16 +103,88 @@ const QuestionEditor: React.FC<Props> = ({
       const reordered = Array.from(items);
       const [moved] = reordered.splice(source.index, 1);
       reordered.splice(destination.index, 0, moved);
-
-      // clear old media and reassign in new order
-      handleOptionChange(idx, 'image', undefined);
-      handleOptionChange(idx, 'audio', undefined);
-      handleOptionChange(idx, 'video', undefined);
-      reordered.forEach(item => {
-        handleOptionChange(idx, item.type, item.value as any);
-      });
+      setOptMedia(prev =>
+        prev.map((arr, i) => (i === idx ? reordered : arr))
+      );
+      
+      // then persist back into your Question state exactly as you already do:
+      handleOptionChange(idx, 'mediaOrder', reordered.map(i=>i.type));
+      handleOptionChange(idx, 'image', undefined as any);
+      handleOptionChange(idx, 'audio', undefined as any);
+      handleOptionChange(idx, 'video', undefined as any);
+      reordered.forEach(item => handleOptionChange(idx, item.type as any, item.value as any));
     }
   };
+
+  // compress images, and upload audio/video directly, updating mediaOrder
+// inside QuestionEditor.tsx
+
+const compressAndUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>,
+  target: 'question' | 'option',
+  idx?: number
+) => {
+  // grab the real input element
+  const inputEl = e.currentTarget;
+  const files = inputEl.files;
+  if (!files) return;
+
+  for (const file of Array.from(files)) {
+    let type: 'image'|'audio'|'video';
+    let dataUrl: string;
+
+    if (file.type.startsWith('image/')) {
+      type = 'image';
+      try {
+        const compressed = await imageCompression(file, {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        });
+        dataUrl = await imageCompression.getDataUrlFromFile(compressed);
+      } catch {
+        dataUrl = await new Promise<string>(resolve => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+      }
+    } else if (file.type.startsWith('audio/')) {
+      type = 'audio';
+      dataUrl = await new Promise<string>(resolve => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+    } else if (file.type.startsWith('video/')) {
+      type = 'video';
+      dataUrl = await new Promise<string>(resolve => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+    } else {
+      continue;
+    }
+
+    if (target === 'question') {
+      handleQuestionChange(type, dataUrl);
+      const existing = selectedQuestion.mediaOrder || [];
+      handleQuestionChange('mediaOrder', [...existing.filter(t => t !== type), type]);
+    } else if (idx !== undefined) {
+      handleOptionChange(idx, type, dataUrl);
+      const existing = selectedQuestion.options[idx].mediaOrder || [];
+      handleOptionChange(
+        idx,
+        'mediaOrder',
+        [...existing.filter(t => t !== type), type] as any
+      );
+    }
+  }
+
+  // now it's safe to clear the input
+  inputEl.value = '';
+};
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
@@ -99,41 +202,42 @@ const QuestionEditor: React.FC<Props> = ({
           className="w-full mb-6 px-4 py-3 border text-black border-gray-300 rounded-lg focus:outline-indigo-400 bg-white shadow"
         />
 
-        {/* Question‐level Media */}
+        {/* Question-level Media */}
         <QuestionMedia
           media={qMedia}
-          onRemove={(type: MediaItem['type']) => handleQuestionChange(type, undefined)}
-          onUpload={handleImageUpload}
+          onRemove={type => {
+            handleQuestionChange(type, undefined);
+            handleQuestionChange('mediaOrder', []);
+          }}
+          onUpload={e => compressAndUpload(e, 'question')}
         />
 
         {/* True/False */}
         {selectedQuestion.type === 'TrueFalse' && (
           <div className="grid grid-cols-2 gap-4 mb-6">
-            {[
-              { label: 'True', isCorrect: selectedQuestion.options[0]?.isCorrect, color: 'bg-green-500' },
-              { label: 'False', isCorrect: selectedQuestion.options[1]?.isCorrect, color: 'bg-red-500' },
-            ].map((opt, i) => (
+            {['True', 'False'].map((label, i) => (
               <div
                 key={i}
-                className={`${opt.color} text-white relative flex flex-col items-center justify-center rounded-lg p-6 shadow min-h-[140px]`}
+                className={`${
+                  label === 'True' ? 'bg-green-500' : 'bg-red-500'
+                } text-white relative flex flex-col items-center justify-center rounded-lg p-6 shadow min-h-[140px]`}
               >
                 <label className="absolute top-2 right-2 flex items-center gap-1 text-white text-sm">
                   <input
                     type="radio"
                     name="true-false"
-                    checked={opt.isCorrect}
-                    onChange={() => {
-                      const newOpts = [
+                    checked={selectedQuestion.options[i]?.isCorrect}
+                    onChange={() =>
+                      handleQuestionChange('options', [
                         { text: 'True', isCorrect: i === 0 },
                         { text: 'False', isCorrect: i === 1 },
-                      ];
-                      handleQuestionChange('options', newOpts);
-                    }}
+                      ])
+                    }
                     className="w-4 h-4"
                   />
                   Correct
                 </label>
-                <span className="text-xl font-bold">{opt.label}</span>
+                <span className="text-xl font-bold">{label}</span>
               </div>
             ))}
           </div>
@@ -161,7 +265,7 @@ const QuestionEditor: React.FC<Props> = ({
             options={selectedQuestion.options}
             questionType={selectedQuestion.type}
             handleOptionChange={handleOptionChange}
-            handleOptionImageUpload={handleOptionImageUpload}
+            handleOptionImageUpload={(e, idx) => compressAndUpload(e, 'option', idx)}
           />
         )}
 
@@ -170,6 +274,7 @@ const QuestionEditor: React.FC<Props> = ({
           (selectedQuestion.type === 'MCQ' || selectedQuestion.type === 'Multiselect') && (
             <div className="text-center mt-4">
               <button
+                type="button"
                 onClick={addOption}
                 className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded hover:bg-indigo-700 transition shadow"
               >

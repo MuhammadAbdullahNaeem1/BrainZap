@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Option, optionSymbols, symbolColors } from '../types/quizTypes';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faImage, faTrash, faGripVertical } from '@fortawesome/free-solid-svg-icons';
+import {
+  faImage,
+  faTrash,
+  faGripVertical,
+} from '@fortawesome/free-solid-svg-icons';
 import {
   DragDropContext,
   Droppable,
@@ -14,9 +18,13 @@ interface Props {
   opt: Option;
   idx: number;
   isMulti: boolean;
+  orderedMedia: MediaItem[];
   onTextChange: (text: string) => void;
   onCorrectChange: (isCorrect: boolean) => void;
-  onMediaUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onMediaUpload: (
+    e: React.ChangeEvent<HTMLInputElement>,
+    idx: number
+  ) => void;
   onRemoveMedia: (type: MediaItem['type']) => void;
   handleOptionChange: <K extends keyof Option>(
     idx: number,
@@ -29,22 +37,20 @@ const OptionItem: React.FC<Props> = ({
   opt,
   idx,
   isMulti,
+  orderedMedia,
   onTextChange,
   onCorrectChange,
   onMediaUpload,
   onRemoveMedia,
   handleOptionChange,
 }) => {
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>(orderedMedia);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
+  // keep local mediaItems in sync when parent prop changes
   useEffect(() => {
-    const items: MediaItem[] = [];
-    if (opt.image) items.push({ type: 'image', value: opt.image });
-    if (opt.audio) items.push({ type: 'audio', value: opt.audio });
-    if (opt.video) items.push({ type: 'video', value: opt.video });
-    setMediaItems(items);
-  }, [opt.image, opt.audio, opt.video]);
+    setMediaItems(orderedMedia);
+  }, [orderedMedia]);
 
   const onDragEnd = (result: DropResult) => {
     const { source, destination } = result;
@@ -55,12 +61,20 @@ const OptionItem: React.FC<Props> = ({
     reordered.splice(destination.index, 0, moved);
     setMediaItems(reordered);
 
-    handleOptionChange(idx, 'image', undefined);
-    handleOptionChange(idx, 'audio', undefined);
-    handleOptionChange(idx, 'video', undefined);
-    reordered.forEach(item => {
-      handleOptionChange(idx, item.type, item.value as any);
-    });
+    // persist new order
+    handleOptionChange(
+      idx,
+      'mediaOrder' as any,
+      reordered.map((i) => i.type) as any
+    );
+
+    // clear & reassign fields
+    handleOptionChange(idx, 'image' as any, undefined as any);
+    handleOptionChange(idx, 'audio' as any, undefined as any);
+    handleOptionChange(idx, 'video' as any, undefined as any);
+    reordered.forEach((item) =>
+      handleOptionChange(idx, item.type as any, item.value as any)
+    );
   };
 
   const filled = opt.text.trim() !== '' || mediaItems.length > 0;
@@ -85,20 +99,24 @@ const OptionItem: React.FC<Props> = ({
               type="text"
               placeholder={`Add answer ${idx + 1}`}
               value={opt.text}
-              onChange={e => onTextChange(e.target.value)}
+              onChange={(e) => onTextChange(e.target.value)}
               className={`w-full bg-transparent ${
                 filled ? 'text-white placeholder-gray-200' : 'text-black'
               } outline-none text-center font-bold`}
             />
           ) : (
             <Droppable droppableId={`option-media-${idx}`} direction="vertical">
-              {provided => (
-                <div {...provided.droppableProps} ref={provided.innerRef} className="w-full space-y-2">
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="w-full space-y-2"
+                >
                   {mediaItems.map((item, mi) => {
                     const key = `${idx}-${item.type}-${mi}`;
                     return (
                       <Draggable key={key} draggableId={key} index={mi}>
-                        {dragProv => (
+                        {(dragProv) => (
                           <div
                             ref={dragProv.innerRef}
                             {...dragProv.draggableProps}
@@ -116,9 +134,7 @@ const OptionItem: React.FC<Props> = ({
                                 className="relative overflow-visible"
                                 onMouseEnter={() => setHoveredKey(key)}
                                 onMouseLeave={() => setHoveredKey(null)}
-                                style={{
-                                  zIndex: hoveredKey === key ? 9999 : undefined,
-                                }}
+                                style={{ zIndex: hoveredKey === key ? 9999 : undefined }}
                               >
                                 {item.type === 'image' ? (
                                   <img
@@ -136,11 +152,11 @@ const OptionItem: React.FC<Props> = ({
                               </div>
                             )}
 
-                              {item.type === 'audio' && (
-                                <div className="max-w-lg w-full mx-auto">
-                                  <audio controls src={item.value} className="w-full" />
-                                </div>
-                              )}
+                            {item.type === 'audio' && (
+                              <div className="max-w-lg w-full mx-auto">
+                                <audio controls src={item.value} className="w-full" />
+                              </div>
+                            )}
 
                             <button
                               onClick={() => onRemoveMedia(item.type)}
@@ -173,8 +189,8 @@ const OptionItem: React.FC<Props> = ({
             accept="image/*,audio/*,video/*"
             className="hidden"
             multiple
-            onChange={e => {
-              onMediaUpload(e);
+            onChange={(e) => {
+              onMediaUpload(e, idx);
               e.currentTarget.value = '';
             }}
           />
@@ -184,7 +200,7 @@ const OptionItem: React.FC<Props> = ({
               type={isMulti ? 'checkbox' : 'radio'}
               name={isMulti ? undefined : 'correct-answer'}
               checked={opt.isCorrect}
-              onChange={e => onCorrectChange(e.target.checked)}
+              onChange={(e) => onCorrectChange(e.target.checked)}
               className="w-4 h-4"
             />
             Correct

@@ -22,19 +22,19 @@ const TopBar = ({ title, onTitleChange, onSave, onThemeClick, onPreviewClick }: 
         onClick={onSave}
         className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded font-semibold shadow"
       >
-        Save
+        ✅ Save
       </button>
       <button
         onClick={onThemeClick}
         className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded font-semibold shadow"
       >
-        Themes
+        🎨 Themes
       </button>
       <button
         onClick={onPreviewClick}
         className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded font-semibold shadow"
       >
-        Preview
+        👁️ Preview
       </button>
 
     </div>
